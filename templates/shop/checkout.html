@@ -1,0 +1,409 @@
+{% extends 'base.html' %}
+{% block title %}Checkout — VOLTR{% endblock %}
+{% block head %}
+<script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD" onerror="window.paypalFailed=true"></script>
+{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="breadcrumb"><a href="{{ url_for('shop.index') }}">Home</a> / Checkout</div>
+  <h1 class="page-title">Secure Checkout</h1>
+  <p class="page-subtitle">Your payment is encrypted end-to-end. All prices confirmed at order time.</p>
+</div>
+
+<div class="checkout-layout" id="checkoutLayout">
+  <!-- LEFT -->
+  <div class="checkout-left">
+    <!-- STEP 1: ADDRESS -->
+    <div class="co-card">
+      <h3><span class="step-num">1</span> Delivery Address</h3>
+      {% if addresses %}
+      <div class="addr-list" id="addrList">
+        {% for a in addresses %}
+        <div class="addr-option {% if a.is_default %}selected{% endif %}" data-id="{{ a.id }}" onclick="selectAddr({{ a.id }}, this)">
+          <div class="addr-radio {% if a.is_default %}checked{% endif %}"></div>
+          <div>
+            <strong>{{ a.full_name }}</strong>{% if a.is_default %}<span class="badge-default">Default</span>{% endif %}<br>
+            {{ a.line1 }}, {{ a.city }}, {{ a.postcode }}<br>
+            {{ a.country }} &bull; {{ a.phone }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);font-size:0.88rem;margin-bottom:1rem">No saved addresses. Add one below.</p>
+      {% endif %}
+
+      <button class="add-addr-toggle" onclick="toggleAddrForm()">+ Add New Address</button>
+      <div id="addrForm" class="addr-form-panel" style="display:none">
+        <div class="input-row">
+          <div class="form-group"><label>Full Name *</label><input type="text" id="af-name" placeholder="Jane Mwangi"></div>
+          <div class="form-group"><label>Phone *</label><input type="tel" id="af-phone" placeholder="+254 712 345 678"></div>
+        </div>
+        <div class="form-group"><label>Street Address *</label><input type="text" id="af-line1" placeholder="123 Westlands Road, Apt 4B"></div>
+        <div class="input-row3">
+          <div class="form-group"><label>City *</label><input type="text" id="af-city" placeholder="Nairobi"></div>
+          <div class="form-group"><label>Postcode</label><input type="text" id="af-post" placeholder="00100"></div>
+          <div class="form-group"><label>Country</label>
+            <select id="af-country">
+              <option>Kenya</option><option>Uganda</option><option>Tanzania</option>
+              <option>Nigeria</option><option>South Africa</option><option>United Kingdom</option>
+              <option>United States</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+        <label class="check-label"><input type="checkbox" id="af-default"> Set as default address</label>
+        <div style="display:flex;gap:0.7rem;margin-top:0.8rem">
+          <button class="btn btn-orange btn-sm" onclick="saveNewAddress()">Save Address</button>
+          <button class="btn btn-ghost-dark btn-sm" onclick="toggleAddrForm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: CONTACT -->
+    <div class="co-card">
+      <h3><span class="step-num">2</span> Contact Details</h3>
+      <div class="input-row">
+        <div class="form-group"><label>First Name</label><input type="text" id="co-first" placeholder="Jane" value="{{ current_user.full_name.split()[0] }}"></div>
+        <div class="form-group"><label>Last Name</label><input type="text" id="co-last" placeholder="Mwangi" value="{{ current_user.full_name.split()[-1] if current_user.full_name.split()|length > 1 else '' }}"></div>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="co-email" value="{{ current_user.email }}"></div>
+    </div>
+
+    <!-- STEP 3: PAYMENT -->
+    <div class="co-card">
+      <h3><span class="step-num">3</span> Payment Method</h3>
+      <div class="pay-tabs">
+        <button class="pay-tab active" id="tab-mpesa" onclick="switchTab('mpesa')">M-Pesa</button>
+        <button class="pay-tab" id="tab-paypal" onclick="switchTab('paypal')">PayPal</button>
+        <button class="pay-tab" id="tab-card" onclick="switchTab('card')">Card</button>
+      </div>
+
+      <!-- ═══ M-PESA ═══ -->
+      <div class="pay-panel active" id="panel-mpesa">
+        <div class="mpesa-branding">
+          <div class="mpesa-icon-box">M</div>
+          <div><strong>Lipa Na M-Pesa</strong><br><small>Safaricom Daraja STK Push &mdash; real-time</small></div>
+        </div>
+        <div class="form-group">
+          <label>Safaricom Phone Number</label>
+          <div class="phone-input-wrap">
+            <span class="phone-prefix">🇰🇪 +254</span>
+            <input type="tel" id="mpesa-phone" placeholder="712 345 678" maxlength="12" value="{{ current_user.phone[4:] if current_user.phone and current_user.phone.startswith('+254') else '' }}">
+          </div>
+          <small class="field-hint">Enter your M-Pesa registered Safaricom number.</small>
+        </div>
+        <div class="mpesa-amount-preview">
+          You will be prompted to pay <strong id="mpesa-kes-amount">KSh ...</strong>
+        </div>
+        <button class="btn btn-mpesa btn-block" id="mpesaBtn" onclick="sendStkPush()">
+          Send M-Pesa STK Push
+        </button>
+
+        <!-- WAITING STATE -->
+        <div class="mpesa-waiting" id="mpesaWaiting" style="display:none">
+          <div class="mpesa-spinner"></div>
+          <h4>Waiting for your PIN</h4>
+          <p>An M-Pesa prompt has been sent to <strong id="mpesa-phone-disp"></strong>.<br>
+          Open your Safaricom M-Pesa menu and <strong>enter your PIN</strong> to approve the payment.</p>
+          <div class="mpesa-timer-wrap">
+            <svg class="timer-ring" viewBox="0 0 56 56">
+              <circle cx="28" cy="28" r="24" fill="none" stroke="#e0e0e0" stroke-width="4"/>
+              <circle cx="28" cy="28" r="24" fill="none" stroke="#00b300" stroke-width="4"
+                      stroke-dasharray="150.8" id="timerArc" stroke-dashoffset="0"
+                      transform="rotate(-90 28 28)" stroke-linecap="round"/>
+            </svg>
+            <span id="mpesaCountdown">120</span>
+          </div>
+          <p class="mpesa-hint">The prompt expires in <strong id="mpesaCountdown2">120</strong> seconds.<br>Do NOT close this page.</p>
+          <button class="btn btn-ghost-dark btn-sm" onclick="cancelStkPush()">Cancel</button>
+        </div>
+
+        <!-- ERROR -->
+        <div class="mpesa-error" id="mpesaError" style="display:none">
+          <strong>Payment failed or timed out.</strong> <span id="mpesaErrorMsg"></span><br>
+          <button class="btn btn-orange btn-sm" onclick="resetMpesa()" style="margin-top:0.5rem">Try Again</button>
+        </div>
+      </div>
+
+      <!-- ═══ PAYPAL ═══ -->
+      <div class="pay-panel" id="panel-paypal">
+        <p style="font-size:0.88rem;color:var(--muted);margin-bottom:1rem">
+          Pay securely via PayPal. You will be charged <strong id="paypal-amount"></strong>.
+        </p>
+        <div id="paypal-button-container"></div>
+        <p class="hint-text">Powered by PayPal. Your credentials are never shared with VOLTR.<br>
+          <em>Replace <code>client-id=sb</code> with your live PayPal client ID for production.</em>
+        </p>
+      </div>
+
+      <!-- ═══ CARD ═══ -->
+      <div class="pay-panel" id="panel-card">
+        <div class="card-brands-row">
+          <span class="card-brand-tag">VISA</span>
+          <span class="card-brand-tag">Mastercard</span>
+          <span class="card-brand-tag">Amex</span>
+          <span class="card-brand-tag" style="font-size:0.65rem">Connect Stripe / Flutterwave in production</span>
+        </div>
+        <div class="form-group"><label>Card Number</label><input type="text" id="card-num" placeholder="4242 4242 4242 4242" maxlength="19" oninput="fmtCardNum(this)"></div>
+        <div class="form-group"><label>Cardholder Name</label><input type="text" id="card-name" placeholder="Jane Mwangi"></div>
+        <div class="input-row">
+          <div class="form-group"><label>Expiry</label><input type="text" id="card-exp" placeholder="MM / YY" maxlength="7" oninput="fmtExp(this)"></div>
+          <div class="form-group"><label>CVV</label><input type="password" id="card-cvv" placeholder="123" maxlength="4"></div>
+        </div>
+        <button class="btn btn-teal btn-block" onclick="payByCard()">Pay <span id="card-total-amt"></span> Securely</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: ORDER SUMMARY -->
+  <div class="order-summary-card" id="orderSummary">
+    <h3>Order Summary</h3>
+    <div id="summaryItems"></div>
+    <div class="summary-lines" id="summaryLines"></div>
+    <div class="summary-total-row">
+      <span>Total</span>
+      <span class="summary-total-amt" id="summaryTotal"></span>
+    </div>
+    <div class="summary-currency-note">
+      Prices shown in <strong>{{ currency }}</strong> at live ECB rate.<br>
+      Final charge in your payment method's base currency.
+    </div>
+  </div>
+</div>
+
+<script>
+var selectedAddressId = {% if addresses %}{{ addresses[0].id }}{% else %}null{% endif %};
+var currentCheckoutRequestId = null;
+var stkPollInterval = null;
+var stkCountdownInterval = null;
+var currentDbOrderId = null;
+var KES_RATE = RATES['KES'] || 129.5;
+
+function selectAddr(id, el) {
+  selectedAddressId = id;
+  document.querySelectorAll('.addr-option').forEach(function(a){ a.classList.remove('selected'); a.querySelector('.addr-radio').classList.remove('checked'); });
+  el.classList.add('selected');
+  el.querySelector('.addr-radio').classList.add('checked');
+}
+
+function toggleAddrForm() {
+  var f = document.getElementById('addrForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveNewAddress() {
+  var data = {
+    full_name: document.getElementById('af-name').value.trim(),
+    phone:     document.getElementById('af-phone').value.trim(),
+    line1:     document.getElementById('af-line1').value.trim(),
+    city:      document.getElementById('af-city').value.trim(),
+    postcode:  document.getElementById('af-post').value.trim(),
+    country:   document.getElementById('af-country').value,
+    is_default: document.getElementById('af-default').checked ? 'on' : '',
+  };
+  if (!data.full_name || !data.line1 || !data.city) { showToast('Name, address and city are required.','error'); return; }
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/addresses/add';
+  for (var k in data) {
+    var inp = document.createElement('input');
+    inp.type='hidden'; inp.name=k; inp.value=data[k];
+    form.appendChild(inp);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
+
+// ─── Summary ─────────────────────────────────────
+function renderSummary() {
+  var items = document.getElementById('summaryItems');
+  var lines = document.getElementById('summaryLines');
+  var total = document.getElementById('summaryTotal');
+  var sub   = cartTotal();
+  var del   = 4;
+  if (!cart.length) { items.innerHTML='<p style="color:var(--muted);text-align:center;padding:1.5rem 0">Your cart is empty.</p>'; lines.innerHTML=''; total.textContent=''; return; }
+  items.innerHTML = cart.map(function(i){
+    return '<div class="summary-item"><img src="'+i.image+'" onerror="this.src=\'/static/img/placeholder.svg\'"><div><div class="si-name">'+i.name+'</div><div class="si-qty">Qty: '+i.qty+'</div></div><div class="si-price">'+fmt(i.price*i.qty)+'</div></div>';
+  }).join('');
+  lines.innerHTML = '<div class="sl-row"><span>Subtotal ('+cart.reduce(function(s,i){return s+i.qty;},0)+' items)</span><span>'+fmt(sub)+'</span></div>'+
+    '<div class="sl-row"><span>Delivery</span><span>'+fmt(del)+'</span></div>'+
+    '<div class="sl-row"><span>VAT (16%)</span><span>Included</span></div>';
+  total.textContent = fmt(sub + del);
+
+  // Update payment amount previews
+  document.getElementById('mpesa-kes-amount').textContent = 'KSh ' + Math.round((sub+del)*KES_RATE).toLocaleString();
+  document.getElementById('paypal-amount') && (document.getElementById('paypal-amount').textContent = '$'+(sub+del).toFixed(2)+' USD');
+  document.getElementById('card-total-amt') && (document.getElementById('card-total-amt').textContent = fmt(sub+del));
+}
+
+function switchTab(id) {
+  document.querySelectorAll('.pay-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.pay-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('tab-'+id).classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+  if (id === 'paypal') initPayPal();
+}
+
+// ─── M-PESA ──────────────────────────────────────
+function sendStkPush() {
+  if (!cart.length) { showToast('Cart is empty!','error'); return; }
+  var phone = document.getElementById('mpesa-phone').value.trim();
+  if (!phone || phone.replace(/\D/g,'').length < 9) { showToast('Enter a valid Safaricom number.','error'); return; }
+  if (!selectedAddressId) { showToast('Please select or add a delivery address.','error'); return; }
+
+  document.getElementById('mpesaBtn').disabled = true;
+  document.getElementById('mpesaBtn').textContent = 'Sending...';
+  showToast('Sending STK push to your phone...', '');
+
+  fetch('/api/payment/mpesa/stk', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      phone:      '+254' + phone.replace(/\D/g,''),
+      cart:       cart.map(function(i){ return {id:i.id, qty:i.qty}; }),
+      address_id: selectedAddressId,
+      currency:   CURRENCY,
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (d.error) { showStkError(d.error); return; }
+    currentCheckoutRequestId = d.checkout_request_id;
+    currentDbOrderId         = d.order_id;
+    showWaitingState(phone);
+    startStkPoll();
+  })
+  .catch(function(e){ showStkError('Network error. Please try again.'); });
+}
+
+function showWaitingState(phone) {
+  document.getElementById('mpesaBtn').style.display = 'none';
+  document.getElementById('mpesaWaiting').style.display = 'block';
+  document.getElementById('mpesa-phone-disp').textContent = '+254' + phone.replace(/\D/g,'');
+  startCountdown(120);
+}
+
+function startCountdown(secs) {
+  var arc    = document.getElementById('timerArc');
+  var cEl    = document.getElementById('mpesaCountdown');
+  var cEl2   = document.getElementById('mpesaCountdown2');
+  var total  = secs;
+  var full   = 150.8;
+  clearInterval(stkCountdownInterval);
+  stkCountdownInterval = setInterval(function(){
+    secs--;
+    if (cEl)  cEl.textContent  = secs;
+    if (cEl2) cEl2.textContent = secs;
+    if (arc)  arc.style.strokeDashoffset = (full * (1 - secs/total));
+    if (secs <= 0) {
+      clearInterval(stkCountdownInterval);
+      clearInterval(stkPollInterval);
+      showStkError('STK push timed out. Please try again.');
+    }
+  }, 1000);
+}
+
+function startStkPoll() {
+  if (!currentCheckoutRequestId) return;
+  clearInterval(stkPollInterval);
+  stkPollInterval = setInterval(function(){
+    fetch('/api/payment/mpesa/query/' + currentCheckoutRequestId)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.status === 'completed') {
+        clearInterval(stkPollInterval);
+        clearInterval(stkCountdownInterval);
+        cart = []; localStorage.setItem('voltr_cart','[]'); updateCartUI();
+        window.location.href = '/orders/' + d.order_id;
+      } else if (d.status === 'failed') {
+        clearInterval(stkPollInterval);
+        clearInterval(stkCountdownInterval);
+        showStkError(d.message || 'Payment was not completed. Please try again.');
+      }
+    }).catch(function(){});
+  }, 3000);
+}
+
+function cancelStkPush() {
+  clearInterval(stkPollInterval); clearInterval(stkCountdownInterval);
+  resetMpesa();
+}
+
+function showStkError(msg) {
+  document.getElementById('mpesaWaiting').style.display = 'none';
+  document.getElementById('mpesaError').style.display = 'block';
+  document.getElementById('mpesaErrorMsg').textContent = msg;
+  document.getElementById('mpesaBtn').disabled = false;
+  document.getElementById('mpesaBtn').textContent = 'Send M-Pesa STK Push';
+  document.getElementById('mpesaBtn').style.display = 'block';
+}
+
+function resetMpesa() {
+  document.getElementById('mpesaWaiting').style.display = 'none';
+  document.getElementById('mpesaError').style.display   = 'none';
+  document.getElementById('mpesaBtn').disabled = false;
+  document.getElementById('mpesaBtn').textContent = 'Send M-Pesa STK Push';
+  document.getElementById('mpesaBtn').style.display = 'block';
+  currentCheckoutRequestId = null; currentDbOrderId = null;
+}
+
+// ─── PAYPAL ──────────────────────────────────────
+function initPayPal() {
+  var container = document.getElementById('paypal-button-container');
+  if (!container || container.children.length) return;
+  if (typeof paypal === 'undefined') {
+    container.innerHTML = '<div class="info-box">PayPal sandbox. Replace <code>client-id=sb</code> with your live PayPal client ID.</div>';
+    return;
+  }
+  var sub = cartTotal() + 4;
+  fetch('/api/payment/paypal/create', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({cart: cart.map(function(i){return {id:i.id,qty:i.qty};}), address_id: selectedAddressId, currency: CURRENCY})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.error) { container.innerHTML='<p style="color:var(--red)">'+d.error+'</p>'; return; }
+    currentDbOrderId = d.order_id;
+    paypal.Buttons({
+      style:{layout:'vertical',color:'blue',shape:'rect',label:'pay'},
+      createOrder: function(data, actions){ return actions.order.create({purchase_units:[{amount:{value:d.amount},description:'VOLTR Order '+d.order_id}]}); },
+      onApprove: function(data, actions){ return actions.order.capture().then(function(details){
+        fetch('/api/payment/paypal/capture', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({db_order_id: currentDbOrderId, details: details})
+        }).then(function(r){ return r.json(); }).then(function(rd){
+          if (rd.success) { cart=[]; localStorage.setItem('voltr_cart','[]'); updateCartUI(); window.location.href='/orders/'+rd.order_id; }
+        });
+      });},
+      onError: function(){ showToast('PayPal error. Try M-Pesa or card.','error'); }
+    }).render('#paypal-button-container');
+  });
+}
+
+// ─── CARD ─────────────────────────────────────────
+function payByCard() {
+  if (!cart.length) { showToast('Cart is empty!','error'); return; }
+  var num = document.getElementById('card-num').value;
+  var nm  = document.getElementById('card-name').value;
+  var exp = document.getElementById('card-exp').value;
+  var cvv = document.getElementById('card-cvv').value;
+  if (!num||!nm||!exp||!cvv) { showToast('Please fill in all card fields.','error'); return; }
+  if (num.replace(/\s/g,'').length < 16) { showToast('Enter a valid 16-digit card number.','error'); return; }
+  showToast('Processing payment...','');
+  var last4 = num.replace(/\s/g,'').slice(-4);
+  fetch('/api/payment/card/charge', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cart: cart.map(function(i){return {id:i.id,qty:i.qty};}), address_id: selectedAddressId, currency: CURRENCY, last4: last4 })
+  }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.error) { showToast(d.error,'error'); return; }
+    cart=[]; localStorage.setItem('voltr_cart','[]'); updateCartUI();
+    window.location.href='/orders/'+d.order_id;
+  }).catch(function(){ showToast('Network error. Please try again.','error'); });
+}
+
+function fmtCardNum(el){ var v=el.value.replace(/\D/g,'').substring(0,16); el.value=(v.match(/.{1,4}/g)||[]).join(' '); }
+function fmtExp(el){ var v=el.value.replace(/\D/g,''); if(v.length>2) v=v.substring(0,2)+' / '+v.substring(2,4); el.value=v; }
+
+// Init
+renderSummary();
+setInterval(renderSummary, 2000);
+</script>
+{% endblock %}

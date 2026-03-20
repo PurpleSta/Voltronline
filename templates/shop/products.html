@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}All Products — VOLTR{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="breadcrumb"><a href="{{ url_for('shop.index') }}">Home</a> / All Products</div>
+  <h1 class="page-title">All Products</h1>
+  <p class="page-subtitle">{{ products|length }} item{{ 's' if products|length != 1 }} — prices in {{ currency }}</p>
+</div>
+
+<div class="shop-layout">
+  <!-- SIDEBAR FILTERS -->
+  <aside class="shop-sidebar">
+    <form method="get" action="{{ url_for('shop.products') }}" id="filterForm">
+      <input type="hidden" name="currency" value="{{ currency }}">
+      <div class="filter-section">
+        <h4>Search</h4>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search products..." class="filter-input">
+      </div>
+      <div class="filter-section">
+        <h4>Category</h4>
+        <label class="filter-radio"><input type="radio" name="cat" value="" {% if not cat_slug %}checked{% endif %} onchange="this.form.submit()"> All Categories</label>
+        {% for cat in categories %}
+        <label class="filter-radio"><input type="radio" name="cat" value="{{ cat.slug }}" {% if cat_slug == cat.slug %}checked{% endif %} onchange="this.form.submit()"> {{ cat.name }}</label>
+        {% endfor %}
+      </div>
+      <div class="filter-section">
+        <h4>Deals</h4>
+        <label class="filter-radio"><input type="radio" name="badge" value="" {% if not badge %}checked{% endif %} onchange="this.form.submit()"> All</label>
+        <label class="filter-radio"><input type="radio" name="badge" value="new" {% if badge=='new' %}checked{% endif %} onchange="this.form.submit()"> New Arrivals</label>
+        <label class="filter-radio"><input type="radio" name="badge" value="sale" {% if badge=='sale' %}checked{% endif %} onchange="this.form.submit()"> On Sale</label>
+        <label class="filter-radio"><input type="radio" name="badge" value="hot" {% if badge=='hot' %}checked{% endif %} onchange="this.form.submit()"> Hot Deals</label>
+      </div>
+      <div class="filter-section">
+        <h4>Sort By</h4>
+        <select name="sort" onchange="this.form.submit()" class="filter-input">
+          <option value="newest" {% if sort=='newest' %}selected{% endif %}>Newest First</option>
+          <option value="price_asc" {% if sort=='price_asc' %}selected{% endif %}>Price: Low to High</option>
+          <option value="price_desc" {% if sort=='price_desc' %}selected{% endif %}>Price: High to Low</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-orange btn-block btn-sm">Apply Filters</button>
+      {% if q or cat_slug or badge %}
+      <a href="{{ url_for('shop.products') }}?currency={{ currency }}" class="btn btn-ghost-dark btn-block btn-sm" style="margin-top:0.4rem;text-align:center">Clear Filters</a>
+      {% endif %}
+    </form>
+  </aside>
+
+  <!-- PRODUCT GRID -->
+  <div class="shop-main">
+    {% if q or cat_slug or badge %}
+    <div class="active-filters">
+      {% if q %}<span class="filter-tag">Search: "{{ q }}" <a href="{{ url_for('shop.products') }}?currency={{ currency }}{% if cat_slug %}&cat={{ cat_slug }}{% endif %}{% if badge %}&badge={{ badge }}{% endif %}">×</a></span>{% endif %}
+      {% if cat_slug %}<span class="filter-tag">Category: {{ cat_slug }} <a href="{{ url_for('shop.products') }}?currency={{ currency }}{% if q %}&q={{ q }}{% endif %}{% if badge %}&badge={{ badge }}{% endif %}">×</a></span>{% endif %}
+      {% if badge %}<span class="filter-tag">{{ badge|title }} <a href="{{ url_for('shop.products') }}?currency={{ currency }}{% if q %}&q={{ q }}{% endif %}{% if cat_slug %}&cat={{ cat_slug }}{% endif %}">×</a></span>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="products-grid">
+      {% for p in products %}
+      {% set pd = p.to_dict(currency, rate) %}
+      <div class="prod-card">
+        {% if pd.badge %}<span class="prod-badge badge-{{ pd.badge }}">{{ pd.badge }}</span>{% endif %}
+        <a href="{{ url_for('shop.product_detail', pid=p.id) }}" class="prod-img-link">
+          <img src="{{ pd.image_url }}" alt="{{ pd.name }}" loading="lazy" onerror="this.src='/static/img/placeholder.svg'">
+        </a>
+        <div class="prod-body">
+          <div class="prod-cat">{{ pd.category }}</div>
+          <a href="{{ url_for('shop.product_detail', pid=p.id) }}" class="prod-name">{{ pd.name }}</a>
+          <div class="prod-vendor">by {{ pd.vendor }}</div>
+          <div class="prod-footer">
+            <div>
+              <span class="prod-price">{{ pd.price }}</span>
+              {% if pd.orig_price %}<span class="prod-orig">{{ pd.orig_price }}</span>{% endif %}
+            </div>
+            {% if p.stock > 0 %}
+            <button class="btn-add" onclick="addToCart({{ p.id }}, {{ p.name|tojson }}, {{ p.price_usd }}, {{ pd.image_url|tojson }})">Add to Cart</button>
+            {% else %}
+            <span class="out-of-stock">Out of stock</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state" style="grid-column:1/-1;padding:4rem;text-align:center">
+        <p>No products found{% if q %} for "{{ q }}"{% endif %}.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

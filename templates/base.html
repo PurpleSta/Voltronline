@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}VOLTR Shop{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span>Free delivery on orders over <strong>KSh 3,000</strong> · Nairobi</span>
+  <div class="topbar-right">
+    <span id="rates-pill" class="rates-pill">Rates loading...</span>
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('auth.profile') }}">{{ current_user.full_name }}</a>
+      {% if current_user.is_vendor %}
+        <a href="{{ url_for('vendor.dashboard') }}">Vendor Dashboard</a>
+      {% endif %}
+      <a href="{{ url_for('auth.logout') }}">Logout</a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}">Sign In</a>
+      <a href="{{ url_for('auth.register') }}">Register</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <a class="logo" href="{{ url_for('shop.index') }}">VOLTR</a>
+
+    <form class="search-form" action="{{ url_for('shop.products') }}" method="get">
+      <svg class="search-ico" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" name="q" placeholder="Search products, brands..." value="{{ request.args.get('q','') }}">
+      <button type="submit">Search</button>
+    </form>
+
+    <div class="header-right">
+      <!-- Currency -->
+      <form method="get" action="{{ request.path }}" id="currencyForm" style="display:inline">
+        {% for k,v in request.args.items() %}
+          {% if k != 'currency' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}
+        {% endfor %}
+        <div class="currency-select">
+          <select name="currency" onchange="this.form.submit()">
+            {% for code in ['USD','EUR','GBP','KES','JPY','AUD','CAD'] %}
+              <option value="{{ code }}" {% if currency == code %}selected{% endif %}>{{ code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </form>
+
+      {% if current_user.is_authenticated %}
+      <a class="hdr-icon-btn" href="{{ url_for('shop.my_orders') }}" title="My Orders">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+        <span>Orders</span>
+      </a>
+      {% endif %}
+
+      <button class="hdr-icon-btn cart-trigger" onclick="toggleCart()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span>Cart</span>
+        <span class="cart-count" id="cartCount">0</span>
+      </button>
+    </div>
+  </div>
+
+  <nav class="main-nav">
+    <a href="{{ url_for('shop.index') }}" class="{% if request.endpoint=='shop.index' %}active{% endif %}">Home</a>
+    <a href="{{ url_for('shop.products') }}" class="{% if request.endpoint=='shop.products' %}active{% endif %}">All Products</a>
+    <a href="{{ url_for('shop.products') }}?badge=new">New Arrivals</a>
+    <a href="{{ url_for('shop.products') }}?badge=sale">Sale</a>
+    <a href="{{ url_for('shop.products') }}?badge=hot">Hot Deals</a>
+    <a href="{{ url_for('shop.my_orders') if current_user.is_authenticated else url_for('auth.login') }}">My Orders</a>
+    <a href="{{ url_for('vendor.dashboard') if current_user.is_vendor else url_for('auth.register')+'?role=vendor' }}">
+      Sell on VOLTR
+    </a>
+  </nav>
+</header>
+
+<!-- FLASH MESSAGES -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}<button onclick="this.parentElement.remove()">&#10005;</button></div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- MAIN -->
+<main>{% block content %}{% endblock %}</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="logo" style="font-size:1.6rem;margin-bottom:0.6rem">VOLTR</div>
+      <p>Premium electronics &amp; tech gear. Shipped across Kenya and 50+ countries. Pay with M-Pesa, PayPal or card.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Shop</h4>
+      <a href="{{ url_for('shop.products') }}">All Products</a>
+      <a href="{{ url_for('shop.products') }}?badge=new">New Arrivals</a>
+      <a href="{{ url_for('shop.products') }}?badge=sale">Sale Items</a>
+    </div>
+    <div class="footer-col">
+      <h4>Account</h4>
+      <a href="{{ url_for('auth.login') }}">Sign In</a>
+      <a href="{{ url_for('auth.register') }}">Register</a>
+      <a href="{{ url_for('shop.my_orders') if current_user.is_authenticated else url_for('auth.login') }}">My Orders</a>
+      <a href="{{ url_for('shop.addresses') if current_user.is_authenticated else url_for('auth.login') }}">Addresses</a>
+    </div>
+    <div class="footer-col">
+      <h4>Sell</h4>
+      <a href="{{ url_for('auth.register') }}?role=vendor">Become a Vendor</a>
+      <a href="{{ url_for('vendor.dashboard') if current_user.is_vendor else '#' }}">Vendor Dashboard</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; {{ current_year }} VOLTR. All rights reserved. Nairobi, Kenya.</span>
+    <span><span class="live-dot"></span> Live ECB rates &bull; Safaricom Daraja M-Pesa &bull; PayPal &bull; Card</span>
+  </div>
+</footer>
+
+<!-- CART DRAWER -->
+<div class="overlay" id="overlay" onclick="toggleCart()"></div>
+<div class="cart-drawer" id="cartDrawer">
+  <div class="cart-drawer-head">
+    <span class="cart-drawer-title">Shopping Cart</span>
+    <button class="drawer-close" onclick="toggleCart()">&#10005;</button>
+  </div>
+  <div class="cart-drawer-body" id="cartDrawerBody"></div>
+  <div class="cart-drawer-foot" id="cartDrawerFoot" style="display:none">
+    <div class="cart-lines">
+      <div class="cart-line-row"><span>Subtotal</span><span id="drawerSubtotal"></span></div>
+      <div class="cart-line-row"><span>Delivery</span><span>At checkout</span></div>
+    </div>
+    <div class="cart-total-row">
+      <span>Total</span><span id="drawerTotal" class="total-amt"></span>
+    </div>
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('shop.checkout') }}" class="btn btn-orange btn-block cart-co-btn">Proceed to Checkout</a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}?next={{ url_for('shop.checkout') }}" class="btn btn-orange btn-block">Sign in to Checkout</a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// Currency & rates
+var CURRENCY = "{{ currency }}";
+var SYMBOL   = "{{ symbol }}";
+var RATES    = {{ rates | tojson }};
+
+function fmt(usdAmt) {
+  var rate = RATES[CURRENCY] || 1;
+  var val  = usdAmt * rate;
+  var dec  = ['KES','JPY'].includes(CURRENCY) ? 0 : 2;
+  return SYMBOL + val.toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});
+}
+
+// ─── Cart (localStorage) ─────────────────────────
+var cart = JSON.parse(localStorage.getItem('voltr_cart') || '[]');
+
+function saveCart() { localStorage.setItem('voltr_cart', JSON.stringify(cart)); updateCartUI(); }
+
+function addToCart(id, name, price, image) {
+  var ex = cart.find(function(x){ return x.id === id; });
+  if (ex) { ex.qty++; } else { cart.push({id:id,name:name,price:parseFloat(price),image:image,qty:1}); }
+  saveCart();
+  showToast(name + ' added to cart', 'success');
+}
+
+function removeFromCart(id) { cart = cart.filter(function(x){ return x.id !== id; }); saveCart(); }
+
+function changeQty(id, d) {
+  var item = cart.find(function(x){ return x.id === id; });
+  if (!item) return;
+  item.qty += d;
+  if (item.qty <= 0) removeFromCart(id); else saveCart();
+}
+
+function cartTotal() { return cart.reduce(function(s,i){ return s + i.price * i.qty; }, 0); }
+
+function updateCartUI() {
+  var count = cart.reduce(function(s,i){ return s+i.qty; }, 0);
+  document.getElementById('cartCount').textContent = count;
+  var body = document.getElementById('cartDrawerBody');
+  var foot = document.getElementById('cartDrawerFoot');
+  if (!body) return;
+  if (!cart.length) {
+    body.innerHTML = '<div class="cart-empty"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="44" height="44"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><p>Your cart is empty</p></div>';
+    foot.style.display = 'none'; return;
+  }
+  body.innerHTML = cart.map(function(item) {
+    return '<div class="cart-item-row"><img src="'+item.image+'" onerror="this.src=\'/static/img/placeholder.svg\'" class="cart-item-img"><div class="cart-item-info"><div class="cart-item-name">'+item.name+'</div><div class="cart-item-price">'+fmt(item.price)+'</div><div class="cart-item-ctls"><button class="qty-btn" onclick="changeQty('+item.id+',-1)">&#8722;</button><span class="qty-val">'+item.qty+'</span><button class="qty-btn" onclick="changeQty('+item.id+',1)">+</button><button class="remove-btn" onclick="removeFromCart('+item.id+')">Remove</button></div></div></div>';
+  }).join('');
+  var sub = cartTotal();
+  document.getElementById('drawerSubtotal').textContent = fmt(sub);
+  document.getElementById('drawerTotal').textContent    = fmt(sub);
+  foot.style.display = 'block';
+}
+
+function toggleCart() {
+  document.getElementById('cartDrawer').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+// ─── Toast ───────────────────────────────────────
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast ' + (type||'') + ' show';
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.classList.remove('show'); }, 3200);
+}
+
+// ─── Live rates pill ─────────────────────────────
+(function fetchRates(){
+  fetch('/api/rates').then(function(r){ return r.json(); }).then(function(d){
+    RATES = d.rates;
+    var pill = document.getElementById('rates-pill');
+    if(pill){ pill.textContent='Live ECB rates'; pill.style.background='#e6f7f0'; pill.style.color='#1a9b5f'; }
+    updateCartUI();
+  }).catch(function(){
+    var pill = document.getElementById('rates-pill');
+    if(pill){ pill.textContent='Cached rates'; pill.style.background='#fef6e6'; pill.style.color='#f5a623'; }
+  });
+})();
+
+// Init
+updateCartUI();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

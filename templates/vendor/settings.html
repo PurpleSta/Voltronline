@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Store Settings — VOLTR Vendor{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="breadcrumb"><a href="{{ url_for('vendor.dashboard') }}">Dashboard</a> / Settings</div>
+  <h1 class="page-title">Store Settings</h1>
+</div>
+<div class="page-body" style="max-width:640px">
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('vendor.settings') }}">
+    <div class="co-card">
+      <h3>Store Profile</h3>
+      {% if vendor.logo_url %}
+      <img src="{{ vendor.logo_url }}" alt="Logo" style="height:80px;border-radius:8px;border:1px solid var(--border);margin-bottom:1rem;object-fit:cover" onerror="this.style.display='none'">
+      {% endif %}
+      <div class="form-group"><label>Store Logo</label><input type="file" name="logo" accept="image/*"></div>
+      <div class="form-group"><label>Store Name *</label><input type="text" name="store_name" value="{{ vendor.store_name }}" required></div>
+      <div class="form-group"><label>Store Description</label><textarea name="description" rows="3">{{ vendor.description or '' }}</textarea></div>
+    </div>
+    <div class="co-card">
+      <h3>Personal Details</h3>
+      <div class="input-row">
+        <div class="form-group"><label>Full Name</label><input type="text" name="full_name" value="{{ current_user.full_name }}"></div>
+        <div class="form-group"><label>Phone</label><input type="tel" name="phone" value="{{ current_user.phone or '' }}"></div>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-orange">Save Settings</button>
+  </form>
+</div>
+{% endblock %}

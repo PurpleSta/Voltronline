@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}VOLTR — Premium Tech Gear, Kenya{% endblock %}
+{% block content %}
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-text">
+    <span class="hero-tag">Spring 2026 Collection</span>
+    <h1 class="hero-title">Premium Tech.<br><em>Delivered Fast.</em><br>Pay Your Way.</h1>
+    <p class="hero-desc">Top-quality electronics shipped across Kenya and worldwide. Pay with M-Pesa, PayPal, or card — in 7 live currencies.</p>
+    <div class="hero-ctas">
+      <a href="{{ url_for('shop.products') }}" class="btn btn-orange">Shop Now</a>
+      <a href="{{ url_for('auth.register') }}?role=vendor" class="btn btn-ghost">Sell on VOLTR</a>
+    </div>
+    <div class="hero-badges">
+      <span class="hbadge">M-Pesa STK Push</span>
+      <span class="hbadge">Live ECB Rates</span>
+      <span class="hbadge">30-Day Returns</span>
+    </div>
+  </div>
+  <div class="hero-img-grid">
+    {% for p in products[:4] %}
+    <div class="hero-prod-card" onclick="location.href='{{ url_for('shop.product_detail', pid=p.id) }}'">
+      <img src="{{ p.image_url or '/static/img/placeholder.svg' }}" alt="{{ p.name }}" onerror="this.src='/static/img/placeholder.svg'">
+      <div class="hpc-info">
+        <span class="hpc-name">{{ p.name }}</span>
+        <span class="hpc-price">{{ p.to_dict(currency, rate)['price'] }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- PROMO STRIP -->
+<div class="promo-strip">
+  {% for icon, text in [
+    ('<path d="M5 12h14M12 5l7 7-7 7"/>','Free delivery over KSh 3,000 in Nairobi'),
+    ('<path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>','12-month warranty on all electronics'),
+    ('<path d="M20 7l-8-4-8 4m16 0-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>','30-day hassle-free returns'),
+    ('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>','Secure M-Pesa, PayPal &amp; card'),
+  ] %}
+  <div class="promo-item">
+    <div class="promo-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24">{{ icon|safe }}</svg></div>
+    <span>{{ text|safe }}</span>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- CATEGORIES -->
+<section class="section">
+  <div class="section-head">
+    <h2 class="section-title">Shop by <span>Category</span></h2>
+  </div>
+  <div class="cat-grid">
+    {% for cat in categories %}
+    <a href="{{ url_for('shop.products') }}?cat={{ cat.slug }}" class="cat-chip">{{ cat.name }}</a>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- FEATURED PRODUCTS -->
+<section class="section">
+  <div class="section-head">
+    <h2 class="section-title">Featured <span>Products</span></h2>
+    <a href="{{ url_for('shop.products') }}" class="see-all-link">View All</a>
+  </div>
+  <div class="products-grid">
+    {% for p in products %}
+    {% set pd = p.to_dict(currency, rate) %}
+    <div class="prod-card">
+      {% if pd.badge %}<span class="prod-badge badge-{{ pd.badge }}">{{ pd.badge }}</span>{% endif %}
+      <a href="{{ url_for('shop.product_detail', pid=p.id) }}" class="prod-img-link">
+        <img src="{{ pd.image_url }}" alt="{{ pd.name }}" loading="lazy" onerror="this.src='/static/img/placeholder.svg'">
+      </a>
+      <div class="prod-body">
+        <div class="prod-cat">{{ pd.category }}</div>
+        <a href="{{ url_for('shop.product_detail', pid=p.id) }}" class="prod-name">{{ pd.name }}</a>
+        <div class="prod-vendor">by {{ pd.vendor }}</div>
+        <div class="prod-footer">
+          <div>
+            <span class="prod-price">{{ pd.price }}</span>
+            {% if pd.orig_price %}<span class="prod-orig">{{ pd.orig_price }}</span>{% endif %}
+          </div>
+          {% if p.stock > 0 %}
+          <button class="btn-add" onclick="addToCart({{ p.id }}, {{ p.name|tojson }}, {{ p.price_usd }}, {{ pd.image_url|tojson }})">Add to Cart</button>
+          {% else %}
+          <span class="out-of-stock">Out of stock</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <p style="color:var(--muted);padding:2rem">No products yet. <a href="{{ url_for('auth.register') }}?role=vendor">Be the first vendor!</a></p>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- VENDOR CTA -->
+<section class="vendor-cta-banner">
+  <div class="vcta-inner">
+    <div>
+      <h2>Start selling on VOLTR today</h2>
+      <p>List your products, manage orders, and reach customers across Kenya and 50+ countries.</p>
+    </div>
+    <div class="vcta-actions">
+      <a href="{{ url_for('auth.register') }}?role=vendor" class="btn btn-white">Register as a Vendor</a>
+      <a href="{{ url_for('vendor.dashboard') if current_user.is_vendor else '#' }}" class="btn btn-outline-white">Go to Dashboard</a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

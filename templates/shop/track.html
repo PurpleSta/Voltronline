@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block title %}Track Order {{ order.id }} — VOLTR{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="breadcrumb">
+    <a href="{{ url_for('shop.index') }}">Home</a> /
+    <a href="{{ url_for('shop.my_orders') }}">My Orders</a> /
+    {{ order.id }}
+  </div>
+  <h1 class="page-title">Order Tracking</h1>
+  <p class="page-subtitle">Real-time delivery status for your order.</p>
+</div>
+
+<div class="track-layout page-body">
+  <!-- LEFT -->
+  <div class="track-main">
+    <!-- Status header -->
+    <div class="track-status-card">
+      <div class="tsc-row">
+        <div>
+          <div class="track-order-id">{{ order.id }}</div>
+          <div class="track-date">Placed {{ order.created_at.strftime('%A, %d %B %Y at %H:%M') }} EAT</div>
+        </div>
+        <span class="status-badge status-{{ order.status_label[1] }}">{{ order.status_label[0] }}</span>
+      </div>
+      {% if order.status not in ('delivered','cancelled','refunded') %}
+      <div class="estimated-delivery">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Estimated delivery: <strong>{{ (order.created_at + __import__('datetime').timedelta(days=1)).strftime('%d %b') }} – {{ (order.created_at + __import__('datetime').timedelta(days=2)).strftime('%d %b %Y') }}</strong>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="track-card">
+      <h3>Delivery Progress</h3>
+      <div class="timeline">
+        {% set steps = order.TIMELINE_STEPS %}
+        {% set current_idx = order.current_step_index %}
+        {% for key, label, desc in steps %}
+          {% set i = loop.index0 %}
+          {% set state = 'done' if i < current_idx else ('active' if i == current_idx else 'pending') %}
+        <div class="tl-step tl-{{ state }}">
+          <div class="tl-left">
+            <div class="tl-dot">
+              {% if state == 'done' %}
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              {% elif state == 'active' %}
+              <div class="tl-active-dot"></div>
+              {% endif %}
+            </div>
+            {% if not loop.last %}<div class="tl-line tl-line-{{ state }}"></div>{% endif %}
+          </div>
+          <div class="tl-content">
+            <div class="tl-label">{{ label }}</div>
+            {% if state != 'pending' %}<div class="tl-desc">{{ desc }}</div>{% endif %}
+            {% for log in order.status_logs %}
+              {% if log.status == key %}
+              <div class="tl-time">{{ log.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+              {% if log.note %}<div class="tl-note">{{ log.note }}</div>{% endif %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ORDER ITEMS -->
+    <div class="track-card">
+      <h3>Items in This Order</h3>
+      <div class="order-items-list">
+        {% for item in order.items %}
+        <div class="order-item-row">
+          <img src="{{ item.product.image_url or '/static/img/placeholder.svg' }}" alt="{{ item.product.name }}" onerror="this.src='/static/img/placeholder.svg'">
+          <div class="oir-info">
+            <div class="oir-name">{{ item.product.name }}</div>
+            <div class="oir-vendor">by {{ item.product.vendor.store_name }}</div>
+            <div class="oir-qty">Qty: {{ item.quantity }}</div>
+          </div>
+          <div class="oir-price">{{ symbol }}{{ '%.0f'|format(item.unit_price_usd * (RATES.get(currency, 1)|float)) if currency in ('KES','JPY') else '%.2f'|format(item.unit_price_usd * (RATES.get(currency, 1)|float)) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div class="track-sidebar">
+    <!-- Delivery address -->
+    <div class="track-card">
+      <h4>Delivery Address</h4>
+      {% if order.address %}
+      <div class="addr-display">
+        <strong>{{ order.address.full_name }}</strong><br>
+        {{ order.address.line1 }}<br>
+        {{ order.address.city }}, {{ order.address.postcode }}<br>
+        {{ order.address.country }}<br>
+        {{ order.address.phone }}
+      </div>
+      {% else %}
+      <p style="color:var(--muted);font-size:0.85rem">No address on record.</p>
+      {% endif %}
+    </div>
+
+    <!-- Payment summary -->
+    <div class="track-card">
+      <h4>Payment</h4>
+      <div class="pay-summary-row"><span>Method</span><span class="pay-method-badge">{{ order.payment_method|upper }}</span></div>
+      {% if order.payment %}
+      <div class="pay-summary-row"><span>Status</span>
+        <span class="status-badge status-{{ 'green' if order.payment.status=='completed' else 'red' }}">{{ order.payment.status }}</span>
+      </div>
+      {% if order.payment.mpesa_receipt %}
+      <div class="pay-summary-row"><span>M-Pesa Receipt</span><span style="font-weight:700;color:var(--green)">{{ order.payment.mpesa_receipt }}</span></div>
+      {% endif %}
+      {% endif %}
+      <div class="pay-summary-row pay-summary-total">
+        <span>Total</span>
+        <span>{{ symbol }}{{ '%.0f'|format(order.total_usd * (RATES.get(currency, 1)|float)) if currency in ('KES','JPY') else '%.2f'|format(order.total_usd * (RATES.get(currency, 1)|float)) }}</span>
+      </div>
+    </div>
+
+    <!-- Help -->
+    <div class="track-card help-card">
+      <h4>Need Help?</h4>
+      <p>Having issues with this order? Our support team is ready to assist.</p>
+      <a href="mailto:support@voltr.shop?subject=Order {{ order.id }}" class="btn btn-orange btn-block btn-sm" style="margin-top:0.8rem;text-align:center">Email Support</a>
+      <a href="https://wa.me/254700000000?text=Hi, I need help with order {{ order.id }}" target="_blank" class="btn btn-ghost-dark btn-block btn-sm" style="margin-top:0.5rem;text-align:center">WhatsApp</a>
+    </div>
+
+    <!-- Back -->
+    <a href="{{ url_for('shop.my_orders') }}" class="btn btn-ghost-dark btn-block" style="text-align:center">← All Orders</a>
+  </div>
+</div>
+{% endblock %}

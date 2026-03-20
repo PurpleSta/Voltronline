@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }} — VOLTR{% endblock %}
+{% block content %}
+{% set pd = product.to_dict(currency, rate) %}
+<div class="product-detail-layout page-body">
+  <!-- Images -->
+  <div class="pd-images">
+    <div class="pd-main-img">
+      <img src="{{ pd.image_url }}" alt="{{ pd.name }}" id="mainImg" onerror="this.src='/static/img/placeholder.svg'">
+      {% if pd.badge %}<span class="prod-badge badge-{{ pd.badge }} pd-badge">{{ pd.badge }}</span>{% endif %}
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div class="pd-info">
+    <div class="pd-breadcrumb">
+      <a href="{{ url_for('shop.index') }}">Home</a> /
+      <a href="{{ url_for('shop.products') }}?cat={{ product.category.slug if product.category else '' }}">{{ product.category.name if product.category else 'Products' }}</a> /
+      {{ product.name }}
+    </div>
+    <h1 class="pd-title">{{ product.name }}</h1>
+    <div class="pd-vendor-row">Sold by <a href="#" class="pd-vendor-link">{{ product.vendor.store_name }}</a></div>
+
+    <div class="pd-price-row">
+      <span class="pd-price">{{ pd.price }}</span>
+      {% if pd.orig_price %}
+      <span class="pd-orig">{{ pd.orig_price }}</span>
+      {% set discount = ((1 - product.price_usd / product.orig_price_usd) * 100)|int %}
+      <span class="pd-discount">{{ discount }}% off</span>
+      {% endif %}
+    </div>
+
+    {% if product.stock > 0 %}
+    <div class="stock-indicator in-stock">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+      In Stock ({{ product.stock }} available)
+    </div>
+    {% else %}
+    <div class="stock-indicator out-stock">Out of Stock</div>
+    {% endif %}
+
+    <div class="pd-desc">{{ product.description or '' }}</div>
+
+    <div class="pd-qty-row">
+      <label>Qty:</label>
+      <div class="qty-control">
+        <button onclick="changeDetailQty(-1)">−</button>
+        <span id="detailQty">1</span>
+        <button onclick="changeDetailQty(1)">+</button>
+      </div>
+    </div>
+
+    {% if product.stock > 0 %}
+    <div class="pd-actions">
+      <button class="btn btn-orange btn-lg" onclick="addDetailToCart()">Add to Cart</button>
+      <a href="{{ url_for('shop.checkout') }}" class="btn btn-teal btn-lg">Buy Now</a>
+    </div>
+    {% endif %}
+
+    <!-- Guarantees -->
+    <div class="pd-guarantees">
+      <div class="pg-item"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Secure payment</div>
+      <div class="pg-item"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M20 7l-8-4-8 4m16 0-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> 30-day returns</div>
+      <div class="pg-item"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg> 12-month warranty</div>
+    </div>
+  </div>
+</div>
+
+<!-- Related -->
+{% if related %}
+<section class="section">
+  <div class="section-head">
+    <h2 class="section-title">Related <span>Products</span></h2>
+  </div>
+  <div class="products-grid">
+    {% for p in related %}
+    {% set rpd = p.to_dict(currency, rate) %}
+    <div class="prod-card">
+      {% if rpd.badge %}<span class="prod-badge badge-{{ rpd.badge }}">{{ rpd.badge }}</span>{% endif %}
+      <a href="{{ url_for('shop.product_detail', pid=p.id) }}" class="prod-img-link">
+        <img src="{{ rpd.image_url }}" alt="{{ rpd.name }}" loading="lazy" onerror="this.src='/static/img/placeholder.svg'">
+      </a>
+      <div class="prod-body">
+        <div class="prod-cat">{{ rpd.category }}</div>
+        <a href="{{ url_for('shop.product_detail', pid=p.id) }}" class="prod-name">{{ rpd.name }}</a>
+        <div class="prod-footer">
+          <span class="prod-price">{{ rpd.price }}</span>
+          {% if p.stock > 0 %}
+          <button class="btn-add" onclick="addToCart({{ p.id }}, {{ p.name|tojson }}, {{ p.price_usd }}, {{ rpd.image_url|tojson }})">Add</button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<script>
+var detailQty = 1;
+function changeDetailQty(d) {
+  detailQty = Math.max(1, Math.min({{ product.stock }}, detailQty + d));
+  document.getElementById('detailQty').textContent = detailQty;
+}
+function addDetailToCart() {
+  for (var i = 0; i < detailQty; i++) {
+    addToCart({{ product.id }}, {{ product.name|tojson }}, {{ product.price_usd }}, {{ pd.image_url|tojson }});
+  }
+}
+</script>
+{% endblock %}

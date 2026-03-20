@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}My Addresses — VOLTR{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="breadcrumb"><a href="{{ url_for('shop.index') }}">Home</a> / My Addresses</div>
+  <h1 class="page-title">Delivery Addresses</h1>
+</div>
+<div class="page-body" style="max-width:700px">
+  <!-- Saved addresses -->
+  {% for a in addresses %}
+  <div class="addr-display-card {% if a.is_default %}default-addr{% endif %}">
+    <div class="adc-info">
+      <strong>{{ a.full_name }}</strong>{% if a.is_default %}<span class="badge-default">Default</span>{% endif %}<br>
+      {{ a.line1 }}<br>{{ a.city }}, {{ a.postcode }}, {{ a.country }}<br>{{ a.phone }}
+    </div>
+    <form method="POST" action="{{ url_for('shop.delete_address', aid=a.id) }}" onsubmit="return confirm('Remove this address?')">
+      <button type="submit" class="btn btn-sm" style="background:var(--red-l);color:var(--red);border:1px solid var(--red)">Remove</button>
+    </form>
+  </div>
+  {% else %}
+  <p style="color:var(--muted);margin-bottom:1.5rem">No saved addresses yet.</p>
+  {% endfor %}
+
+  <!-- Add new -->
+  <div class="co-card" style="margin-top:1.5rem">
+    <h3>Add New Address</h3>
+    <form method="POST" action="{{ url_for('shop.add_address') }}">
+      <div class="input-row">
+        <div class="form-group"><label>Full Name *</label><input type="text" name="full_name" required></div>
+        <div class="form-group"><label>Phone *</label><input type="tel" name="phone" required></div>
+      </div>
+      <div class="form-group"><label>Street Address *</label><input type="text" name="line1" required></div>
+      <div class="input-row3">
+        <div class="form-group"><label>City *</label><input type="text" name="city" required></div>
+        <div class="form-group"><label>Postcode</label><input type="text" name="postcode"></div>
+        <div class="form-group"><label>Country</label>
+          <select name="country">
+            <option>Kenya</option><option>Uganda</option><option>Tanzania</option>
+            <option>Nigeria</option><option>South Africa</option><option>United Kingdom</option>
+            <option>United States</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <label class="check-label"><input type="checkbox" name="is_default"> Set as default</label>
+      <button type="submit" class="btn btn-orange" style="margin-top:1rem">Save Address</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

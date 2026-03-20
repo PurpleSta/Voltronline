@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Orders — VOLTR Vendor{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="breadcrumb"><a href="{{ url_for('vendor.dashboard') }}">Dashboard</a> / Orders</div>
+  <h1 class="page-title">Customer Orders</h1>
+  <p class="page-subtitle">Manage and update the status of orders containing your products.</p>
+</div>
+<div class="page-body">
+  {% if orders %}
+  {% for order in orders %}
+  <div class="vendor-order-card">
+    <div class="voc-header">
+      <div>
+        <span class="voc-id">{{ order.id }}</span>
+        <span class="voc-date">{{ order.created_at.strftime('%d %b %Y, %H:%M') }}</span>
+      </div>
+      <span class="status-badge status-{{ order.status_label[1] }}">{{ order.status_label[0] }}</span>
+    </div>
+
+    <div class="voc-items">
+      {% for item in order.items %}
+        {% if item.product.vendor_id == current_user.vendor.id %}
+        <div class="voc-item">
+          <img src="{{ item.product.image_url or '/static/img/placeholder.svg' }}" alt="{{ item.product.name }}" onerror="this.src='/static/img/placeholder.svg'">
+          <span>{{ item.product.name }}</span>
+          <span>× {{ item.quantity }}</span>
+          <span>${{ '{:.2f}'.format(item.unit_price_usd * item.quantity) }}</span>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="voc-footer">
+      <div class="voc-customer">
+        <strong>Customer:</strong> {{ order.customer.full_name }}
+        &bull; {{ order.customer.email }}
+        {% if order.address %}
+          &bull; {{ order.address.city }}, {{ order.address.country }}
+        {% endif %}
+        &bull; <strong>Via:</strong> {{ order.payment_method|upper }}
+      </div>
+      <form method="POST" action="{{ url_for('vendor.update_order_status', oid=order.id) }}" class="voc-status-form">
+        <select name="status">
+          {% for s in ['confirmed','processing','packed','shipped','out_for_delivery','delivered','cancelled'] %}
+          <option value="{{ s }}" {% if order.status == s %}selected{% endif %}>{{ s.replace('_',' ')|title }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="note" placeholder="Optional note (visible in tracking)">
+        <button type="submit" class="btn btn-orange btn-sm">Update</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="empty-state" style="padding:4rem;text-align:center">
+    <p>No orders yet. Keep promoting your products!</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

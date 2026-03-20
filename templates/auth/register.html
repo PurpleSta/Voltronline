@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Create Account — VOLTR{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card" style="max-width:520px">
+    <div class="auth-logo">VOLTR</div>
+    <h2>Create an Account</h2>
+    <p class="auth-sub">Join thousands of shoppers and vendors on VOLTR</p>
+
+    <!-- Role toggle -->
+    <div class="role-toggle">
+      <button class="role-btn active" id="btn-customer" onclick="setRole('customer')">I want to Shop</button>
+      <button class="role-btn" id="btn-vendor" onclick="setRole('vendor')">I want to Sell</button>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.register') }}" id="regForm">
+      <input type="hidden" name="role" id="role-input" value="customer">
+      <div class="input-row">
+        <div class="form-group"><label>Full Name *</label><input type="text" name="full_name" placeholder="Jane Mwangi" required></div>
+        <div class="form-group"><label>Phone</label><input type="tel" name="phone" placeholder="+254 712 345 678"></div>
+      </div>
+      <div class="form-group"><label>Email Address *</label><input type="email" name="email" placeholder="jane@example.com" required></div>
+
+      <!-- Vendor fields -->
+      <div id="vendorFields" style="display:none">
+        <div class="form-group"><label>Store Name *</label><input type="text" name="store_name" placeholder="TechHub Kenya"></div>
+        <div class="form-group"><label>Store Description</label><textarea name="store_description" placeholder="Tell buyers about your store..." rows="2"></textarea></div>
+      </div>
+
+      <div class="input-row">
+        <div class="form-group"><label>Password *</label><input type="password" name="password" placeholder="Min. 8 characters" minlength="8" required></div>
+        <div class="form-group"><label>Confirm Password *</label><input type="password" name="confirm_password" placeholder="Repeat password" required></div>
+      </div>
+      <button type="submit" class="btn btn-orange btn-block">Create Account</button>
+    </form>
+    <div class="auth-divider"><span>Already have an account?</span></div>
+    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-orange btn-block">Sign In</a>
+  </div>
+</div>
+<script>
+function setRole(role) {
+  document.getElementById('role-input').value = role;
+  document.getElementById('vendorFields').style.display = role==='vendor' ? 'block' : 'none';
+  document.querySelectorAll('.role-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('btn-'+role).classList.add('active');
+}
+var urlRole = new URLSearchParams(location.search).get('role');
+if (urlRole === 'vendor') setRole('vendor');
+</script>
+{% endblock %}

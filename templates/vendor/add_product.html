@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}{% if editing %}Edit{% else %}Add{% endif %} Product — VOLTR Vendor{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="breadcrumb"><a href="{{ url_for('vendor.dashboard') }}">Dashboard</a> / <a href="{{ url_for('vendor.products') }}">Products</a> / {% if editing %}Edit{% else %}Add New{% endif %}</div>
+  <h1 class="page-title">{% if editing %}Edit Product{% else %}Add New Product{% endif %}</h1>
+</div>
+<div class="page-body" style="max-width:800px">
+  <form method="POST" enctype="multipart/form-data" action="{{ url_for('vendor.edit_product', pid=product.id) if editing else url_for('vendor.add_product') }}">
+    <div class="co-card">
+      <h3>Basic Information</h3>
+      <div class="form-group"><label>Product Name *</label>
+        <input type="text" name="name" placeholder="e.g. Sony WH-1000XM5 Headphones" required value="{{ product.name if editing else '' }}">
+      </div>
+      <div class="form-group"><label>Description</label>
+        <textarea name="description" rows="4" placeholder="Describe your product in detail...">{{ product.description if editing else '' }}</textarea>
+      </div>
+      <div class="input-row">
+        <div class="form-group"><label>Category</label>
+          <select name="category_id">
+            <option value="">-- Select Category --</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if editing and product.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Badge</label>
+          <select name="badge">
+            <option value="" {% if editing and not product.badge %}selected{% endif %}>None</option>
+            <option value="new" {% if editing and product.badge=='new' %}selected{% endif %}>New</option>
+            <option value="sale" {% if editing and product.badge=='sale' %}selected{% endif %}>Sale</option>
+            <option value="hot" {% if editing and product.badge=='hot' %}selected{% endif %}>Hot</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="co-card">
+      <h3>Pricing & Stock</h3>
+      <div class="input-row3">
+        <div class="form-group"><label>Price (USD) *</label>
+          <input type="number" name="price" step="0.01" min="0" placeholder="0.00" required value="{{ product.price_usd if editing else '' }}">
+        </div>
+        <div class="form-group"><label>Original Price (for strikethrough)</label>
+          <input type="number" name="orig_price" step="0.01" min="0" placeholder="Optional" value="{{ product.orig_price_usd if editing and product.orig_price_usd else '' }}">
+        </div>
+        <div class="form-group"><label>Stock Quantity *</label>
+          <input type="number" name="stock" min="0" placeholder="0" required value="{{ product.stock if editing else 0 }}">
+        </div>
+      </div>
+      {% if editing %}
+      <label class="check-label"><input type="checkbox" name="is_active" {% if product.is_active %}checked{% endif %}> Product is active (visible to buyers)</label>
+      {% endif %}
+    </div>
+
+    <div class="co-card">
+      <h3>Product Image</h3>
+      {% if editing and product.image_url %}
+      <div style="margin-bottom:1rem">
+        <img src="{{ product.image_url }}" alt="Current image" style="height:120px;border-radius:8px;border:1px solid var(--border);object-fit:cover" onerror="this.style.display='none'">
+        <p style="font-size:0.8rem;color:var(--muted);margin-top:0.4rem">Current image. Upload a new one to replace it.</p>
+      </div>
+      {% endif %}
+      <div class="form-group">
+        <label>Upload Image (PNG, JPG, WebP — max 5MB)</label>
+        <input type="file" name="image" accept="image/*" onchange="previewImage(this)">
+        <img id="imgPreview" src="#" alt="Preview" style="display:none;margin-top:0.8rem;height:120px;border-radius:8px;border:1px solid var(--border);object-fit:cover">
+      </div>
+      <div class="form-group">
+        <label>— or paste an image URL —</label>
+        <input type="url" name="image_url" placeholder="https://example.com/product.jpg" value="{{ product.image_url if editing and product.image_url and not product.image_url.startswith('/static') else '' }}">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem;margin-top:1rem">
+      <button type="submit" class="btn btn-orange">{% if editing %}Save Changes{% else %}List Product{% endif %}</button>
+      <a href="{{ url_for('vendor.products') }}" class="btn btn-ghost-dark">Cancel</a>
+    </div>
+  </form>
+</div>
+<script>
+function previewImage(input) {
+  var preview = document.getElementById('imgPreview');
+  if (input.files && input.files[0]) {
+    var reader = new FileReader();
+    reader.onload = function(e){ preview.src=e.target.result; preview.style.display='block'; };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}

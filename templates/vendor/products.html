@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}My Products — VOLTR Vendor{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <div class="breadcrumb"><a href="{{ url_for('vendor.dashboard') }}">Dashboard</a> / Products</div>
+  <h1 class="page-title">My Products</h1>
+  <p class="page-subtitle">Manage, edit and control your product listings.</p>
+</div>
+<div class="page-body">
+  <div class="toolbar">
+    <form method="get" style="display:flex;gap:0.6rem;align-items:center;flex:1">
+      <input type="text" name="q" placeholder="Search products..." value="{{ q }}" class="search-input">
+      <button type="submit" class="btn btn-ghost-dark btn-sm">Search</button>
+    </form>
+    <a href="{{ url_for('vendor.add_product') }}" class="btn btn-orange">+ Add Product</a>
+  </div>
+
+  {% if products %}
+  <table class="data-table">
+    <tr><th>Image</th><th>Product</th><th>Category</th><th>Price (USD)</th><th>Stock</th><th>Status</th><th>Actions</th></tr>
+    {% for p in products %}
+    <tr id="prod-row-{{ p.id }}">
+      <td><img src="{{ p.image_url or '/static/img/placeholder.svg' }}" style="width:52px;height:52px;border-radius:6px;object-fit:cover;border:1px solid var(--border)" onerror="this.src='/static/img/placeholder.svg'"></td>
+      <td>
+        <strong>{{ p.name }}</strong>
+        {% if p.badge %}<span class="prod-badge badge-{{ p.badge }}" style="font-size:0.6rem;padding:0.15rem 0.4rem">{{ p.badge }}</span>{% endif %}
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">{{ p.description[:80]+'...' if p.description and p.description|length > 80 else (p.description or '') }}</div>
+      </td>
+      <td>{{ p.category.name if p.category else '—' }}</td>
+      <td>${{ '{:.2f}'.format(p.price_usd) }}{% if p.orig_price_usd %}<br><span style="color:var(--muted);font-size:0.75rem;text-decoration:line-through">${{ '{:.2f}'.format(p.orig_price_usd) }}</span>{% endif %}</td>
+      <td>
+        {% if p.stock == 0 %}<span style="color:var(--red);font-weight:600">Out</span>
+        {% elif p.stock < 5 %}<span style="color:var(--yellow);font-weight:600">{{ p.stock }} left</span>
+        {% else %}{{ p.stock }}{% endif %}
+      </td>
+      <td>
+        <label class="toggle-switch" title="Toggle active">
+          <input type="checkbox" {% if p.is_active %}checked{% endif %} onchange="toggleProduct({{ p.id }}, this)">
+          <span class="toggle-slider"></span>
+        </label>
+      </td>
+      <td style="white-space:nowrap">
+        <a href="{{ url_for('vendor.edit_product', pid=p.id) }}" class="btn btn-sm btn-ghost-dark">Edit</a>
+        <form method="POST" action="{{ url_for('vendor.delete_product', pid=p.id) }}" style="display:inline" onsubmit="return confirm('Delete \'{{ p.name }}\'? This cannot be undone.')">
+          <button type="submit" class="btn btn-sm" style="background:var(--red-l);color:var(--red);border:1px solid var(--red)">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty-state" style="padding:4rem;text-align:center">
+    <p>No products found{% if q %} for "{{ q }}"{% endif %}.</p>
+    <a href="{{ url_for('vendor.add_product') }}" class="btn btn-orange" style="margin-top:1rem">Add Your First Product</a>
+  </div>
+  {% endif %}
+</div>
+<script>
+function toggleProduct(pid, checkbox) {
+  fetch('/vendor/products/'+pid+'/toggle', {method:'POST'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ checkbox.checked = d.active; showToast('Product '+(d.active?'activated':'deactivated'),d.active?'success':''); })
+    .catch(function(){ showToast('Failed to update status','error'); checkbox.checked=!checkbox.checked; });
+}
+</script>
+{% endblock %}

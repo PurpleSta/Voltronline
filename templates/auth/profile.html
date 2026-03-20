@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}My Profile — VOLTR{% endblock %}
+{% block content %}
+<div class="page-hero">
+  <h1 class="page-title">My Profile</h1>
+</div>
+<div class="page-body" style="max-width:600px">
+  <form method="POST" action="{{ url_for('auth.profile') }}">
+    <div class="co-card">
+      <h3>Personal Details</h3>
+      <div class="form-group"><label>Full Name</label><input type="text" name="full_name" value="{{ current_user.full_name }}" required></div>
+      <div class="form-group"><label>Email</label><input type="email" value="{{ current_user.email }}" disabled style="background:var(--bg);color:var(--muted)"></div>
+      <div class="form-group"><label>Phone</label><input type="tel" name="phone" value="{{ current_user.phone or '' }}"></div>
+      <button type="submit" class="btn btn-orange">Update Profile</button>
+    </div>
+    <div class="co-card">
+      <h3>Change Password</h3>
+      <div class="form-group"><label>Current Password</label><input type="password" name="current_password"></div>
+      <div class="input-row">
+        <div class="form-group"><label>New Password</label><input type="password" name="new_password" minlength="8"></div>
+        <div class="form-group"><label>Confirm New</label><input type="password" name="confirm_password"></div>
+      </div>
+      <button type="submit" class="btn btn-ghost-dark">Change Password</button>
+    </div>
+  </form>
+  <div style="margin-top:1rem;display:flex;gap:1rem">
+    <a href="{{ url_for('shop.addresses') }}" class="btn btn-ghost-dark">Manage Addresses</a>
+    <a href="{{ url_for('shop.my_orders') }}" class="btn btn-ghost-dark">My Orders</a>
+  </div>
+</div>
+{% endblock %}
